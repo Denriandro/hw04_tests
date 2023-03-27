@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import Post, User, Group
+from ..models import Group, Post, User
 
 User = get_user_model()
 
@@ -72,9 +72,9 @@ class PostFormTests(TestCase):
             data=form_data,
             follow=True,
         )
-        self.assertRedirects(response, reverse(
-                'posts:profile', kwargs={'username': self.author}
-        ))
+        self.assertRedirects(
+            response,
+            reverse('posts:profile', kwargs={'username': self.author}))
         self.assertEqual(Post.objects.count(), post_count + 1)
         self.assertTrue(
             Post.objects.filter(
