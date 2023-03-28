@@ -1,9 +1,8 @@
-from django.contrib.auth import get_user_model
+from http import HTTPStatus
+
 from django.test import Client, TestCase
 
-from ..models import Group, Post
-
-User = get_user_model()
+from posts.models import Group, Post, User
 
 
 class PostURLTests(TestCase):
@@ -23,30 +22,29 @@ class PostURLTests(TestCase):
         )
 
     def setUp(self):
-        self.guest_client = Client()
         self.user = PostURLTests.author
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
     def test_homepage(self):
         """Страница / доступна любому пользователю."""
-        response = self.guest_client.get('/')
-        self.assertEqual(response.status_code, 200)
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_edit(self):
         """Страница /posts/<post_id>/edit/ доступна только автору поста."""
         response = self.authorized_client.get('/posts/<post_id>/edit/')
-        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_create(self):
         """Страница /create/ доступна авторизованному пользователю."""
         response = self.authorized_client.get('/create/')
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_unexisting_page_url(self):
         """Страница /unexisting_page/ возвращает ошибку 404."""
-        response = self.guest_client.get('/unexisting_page/')
-        self.assertEqual(response.status_code, 404)
+        response = self.client.get('/unexisting_page/')
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
 
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""

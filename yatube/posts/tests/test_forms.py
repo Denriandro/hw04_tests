@@ -1,10 +1,7 @@
-from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import Group, Post, User
-
-User = get_user_model()
+from posts.models import Group, Post, User
 
 
 class PostFormTests(TestCase):
@@ -19,8 +16,9 @@ class PostFormTests(TestCase):
         )
 
     def setUp(self):
-        self.author_client = Client()
-        self.author_client.force_login(self.author)
+        self.guest_client = Client()
+        self.client = Client()
+        self.client.force_login(self.author)
 
     def test_post_edit_form(self):
         """При отправке формы со страницы post_edit происходит изменение
@@ -30,26 +28,21 @@ class PostFormTests(TestCase):
             group=self.group,
             text='Текст поста для редактирования.',
         )
-
         edited_group = Group.objects.create(
             description='Описание тестовой группы для редактирования поста',
             slug='test_edit_slug',
             title='Тестовая группа для редактирования поста',
         )
-
         form_data = {
             'group': edited_group.id,
             'text': 'Отредактированный текст поста.'
         }
-
-        self.author_client.post(
+        self.client.post(
             reverse('posts:post_edit', args=[post.id]),
             data=form_data,
             follow=True
         )
-
         edited_post = Post.objects.get(id=post.id)
-
         self.assertEqual(post.author, edited_post.author)
         self.assertEqual(form_data['group'], edited_post.group.id)
         self.assertEqual(form_data['text'], edited_post.text)
@@ -67,7 +60,7 @@ class PostFormTests(TestCase):
             'group': group.id,
             'text': 'Тестовый текст поста',
         }
-        response = self.author_client.post(
+        response = self.client.post(
             reverse('posts:post_create'),
             data=form_data,
             follow=True,
@@ -76,9 +69,24 @@ class PostFormTests(TestCase):
             response,
             reverse('posts:profile', kwargs={'username': self.author}))
         self.assertEqual(Post.objects.count(), post_count + 1)
-        self.assertTrue(
+        self.assertTrue(Post.objects.latest('id'))
+
+    def test_anonymous_create_post(self):
+        """Не авторизованный пользователь не может создать пост"""
+        post_count = Post.objects.count()
+        form_data = {
+            'text': 'Test text',
+            'group': self.group.id,
+        }
+        response = self.guest_client.post(
+            reverse('posts:post_create'),
+            data=form_data,
+            follow=True,
+        )
+        self.assertEqual(Post.objects.count(), post_count)
+        self.assertFalse(
             Post.objects.filter(
-                group=group.id,
-                text='Тестовый текст поста',
+                text=form_data['text'],
+                group=form_data['group'],
             ).exists()
         )
