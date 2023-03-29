@@ -17,7 +17,6 @@ class PostFormTests(TestCase):
 
     def setUp(self):
         self.guest_client = Client()
-        self.client = Client()
         self.client.force_login(self.author)
 
     def test_post_edit_form(self):

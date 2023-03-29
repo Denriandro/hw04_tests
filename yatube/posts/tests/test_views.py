@@ -22,8 +22,7 @@ class PostViewTest(TestCase):
         )
 
     def setUp(self):
-        self.authorized_client = Client()
-        self.authorized_client.force_login(self.user)
+        self.client.force_login(self.user)
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -41,17 +40,17 @@ class PostViewTest(TestCase):
         }
         for reverse_name, template in templates_page_names.items():
             with self.subTest(template=template):
-                response = self.authorized_client.get(reverse_name)
+                response = self.client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
     def test_index_show_correct_context(self):
         """Список постов страницы index."""
-        response = self.authorized_client.get(reverse('posts:index'))
+        response = self.client.get(reverse('posts:index'))
         self.assertEqual(response.context['page_obj'][0], self.post)
 
     def test_group_list_show_correct_context(self):
         """Список постов отфильтрованных по группе."""
-        response = self.authorized_client.get(
+        response = self.client.get(
             reverse('posts:group_list', kwargs={'slug': self.group.slug})
         )
         self.assertEqual(response.context['page_obj'][0], self.post)
@@ -59,22 +58,22 @@ class PostViewTest(TestCase):
 
     def test_profile_show_correct_context(self):
         """Список постов отфильтрованных по пользователю."""
-        response = self.authorized_client.get(
+        response = self.client.get(
             reverse('posts:profile', kwargs={'username': self.user}))
         self.assertEqual(response.context['page_obj'][0], self.post)
         self.assertEqual(response.context['author'], self.user)
 
     def test_post_detail_show_correct_context(self):
         """Один пост, отфильтрованный по id."""
-        response = self.authorized_client.get(
+        response = self.client.get(
             reverse('posts:post_detail', kwargs={'post_id': self.post.id}))
         self.assertEqual(response.context['one_post'], self.post)
 
     def test_post_create_and_edit_show_correct_context(self):
         """Форма создания/редактирования поста, отфильтрованного по id."""
         views = [
-            self.authorized_client.get(reverse('posts:post_create')),
-            self.authorized_client.get(
+            self.client.get(reverse('posts:post_create')),
+            self.client.get(
                 reverse('posts:post_edit', kwargs={'post_id': self.post.id}))
         ]
         for response in views:
@@ -109,7 +108,7 @@ class PostViewTest(TestCase):
             slug='another_slug',
             description='Другое тестовое описание',
         )
-        response = self.authorized_client.get(
+        response = self.client.get(
             reverse('posts:group_list', kwargs={'slug': 'another_slug'}))
         posts = response.context['page_obj']
         expected = Post.objects.filter(group=group)

@@ -22,9 +22,8 @@ class PostURLTests(TestCase):
         )
 
     def setUp(self):
-        self.user = PostURLTests.author
         self.authorized_client = Client()
-        self.authorized_client.force_login(self.user)
+        self.authorized_client.force_login(self.author)
 
     def test_homepage(self):
         """Страница / доступна любому пользователю."""
