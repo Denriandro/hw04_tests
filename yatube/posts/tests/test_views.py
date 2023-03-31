@@ -1,10 +1,17 @@
-from django import forms
-from django.test import TestCase
-from django.urls import reverse
+import shutil
+import tempfile
 
+from django.conf import settings
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django import forms
+from django.test import TestCase, override_settings
+from django.urls import reverse
 from posts.models import Group, Post, User
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostViewTest(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -20,9 +27,27 @@ class PostViewTest(TestCase):
             text='Текст тестового поста.',
             group=cls.group,
         )
+        cls.small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        cls.uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=cls.small_gif,
+            content_type='image/gif',
+        )
 
     def setUp(self):
         self.client.force_login(self.user)
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def test_pages_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
@@ -89,12 +114,12 @@ class PostViewTest(TestCase):
     def test_post_in_group(self):
         """Проверяем наличие group при создании поста на главной, групп,
         профиля страницах."""
+
         urls = [
             '/',
             f'/group/{self.group.slug}/',
             f'/profile/{self.user}/',
         ]
-
         for url in urls:
             with self.subTest(url=url):
                 response = self.client.get(url)
@@ -113,6 +138,52 @@ class PostViewTest(TestCase):
         posts = response.context['page_obj']
         expected = Post.objects.filter(group=group)
         self.assertNotIn(expected, posts)
+
+    def test_image_in_context_of_response_index(self):
+        """Проверяем, что при выводе поста с картинкой изображение передаётся
+        в context на главную, групп, профиля, поста страниц."""
+        views = (
+            reverse('posts:index'),
+            reverse('posts:group_list', kwargs={'slug': self.group.slug}),
+            reverse('posts:profile', kwargs={'username': self.user}),
+        )
+        form_data = {
+            'group': self.group.id,
+            'text': 'Тестовый текст поста c картинкой',
+            'image': self.uploaded,
+            'author': self.user,
+        }
+        self.client.post(
+            reverse('posts:post_create'),
+            data=form_data,
+            follow=True,
+        )
+        for view in views:
+            with self.subTest(view=view):
+                new_post = Post.objects.latest('id').image.name
+                response = self.client.get(view)
+                first_object = response.context['page_obj'][0]
+                post_image = first_object.image.name
+                self.assertEqual(post_image, new_post)
+
+    def test_image_post_detail(self):
+        """Проверяем, что при выводе поста с картинкой изображение передаётся
+        в context на страницу одного поста."""
+        form_data = {
+            'group': self.group.id,
+            'text': 'Тестовый текст поста c картинкой',
+            'image': self.uploaded,
+            'author': self.user,
+        }
+        self.client.post(
+            reverse('posts:post_create'),
+            data=form_data,
+            follow=True,
+        )
+        response = self.client.get(
+            reverse('posts:post_detail', kwargs={'post_id': self.post.id}))
+        first_object = response.context['one_post']
+        self.assertIsNotNone(first_object.image)
 
 
 class PaginatorTest(TestCase):

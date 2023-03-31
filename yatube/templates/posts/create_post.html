@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 {% load user_filters %}
+{% load thumbnail %}
+
 {% block title %}
   {% if is_edit %}
     Редактировать пост
@@ -24,7 +26,8 @@
             <form method="post"
               {% if action_url %}
                 action="{% url action_url %}"
-              {% endif %}>
+              {% endif %}
+                  enctype="multipart/form-data">
             {% csrf_token %}
             {% for field in form %}
               <div class="form-group row my-3 p-3">
